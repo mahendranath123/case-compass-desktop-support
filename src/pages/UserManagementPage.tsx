@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/components/ui/sonner";
+import { UserPlus } from "lucide-react";
 
 export const UserManagementPage = () => {
   const { users, authState, createUser } = useAuth();
@@ -40,9 +42,13 @@ export const UserManagementPage = () => {
   if (authState.user?.role !== "admin") {
     return (
       <div className="max-w-3xl mx-auto py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>
+            You don't have permission to access the user management page.
+          </AlertDescription>
+        </Alert>
         <p className="text-muted-foreground">
-          You don't have permission to access the user management page.
+          Please contact an administrator if you need access.
         </p>
       </div>
     );
@@ -53,12 +59,15 @@ export const UserManagementPage = () => {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage system users</p>
+          <p className="text-muted-foreground">Create and manage system users</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>Add New User</Button>
+            <Button className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add New User
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -76,6 +85,7 @@ export const UserManagementPage = () => {
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter username"
                     required
                   />
                 </div>
@@ -87,8 +97,12 @@ export const UserManagementPage = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Password must be at least 6 characters
+                  </p>
                 </div>
                 
                 {error && <p className="text-destructive text-sm">{error}</p>}
@@ -109,34 +123,45 @@ export const UserManagementPage = () => {
         <CardHeader>
           <CardTitle>System Users</CardTitle>
           <CardDescription>
-            List of all users in the system
+            {users.length === 0 ? 
+              "No users in the system yet" : 
+              `Showing ${users.length} users in the system`
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div 
-                key={user.id} 
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div>
-                  <p className="font-medium">{user.username}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Role: {user.role === "admin" ? "Administrator" : "Support Agent"}
-                  </p>
+          {users.length === 0 ? (
+            <div className="text-center p-6">
+              <p className="text-muted-foreground">
+                No users have been created yet. Click "Add New User" to create one.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {users.map((user) => (
+                <div 
+                  key={user.id} 
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium">{user.username}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Role: {user.role === "admin" ? "Administrator" : "Support Agent"}
+                    </p>
+                  </div>
+                  <div className="space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toast.info("Password reset functionality would be implemented here")}
+                    >
+                      Reset Password
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toast.info("Password reset functionality would be implemented here")}
-                  >
-                    Reset Password
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

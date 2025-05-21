@@ -3,19 +3,18 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, AuthState } from '@/types';
 import { toast } from '@/components/ui/sonner';
 
-// Dummy initial users (would come from a database in a real app)
+// Utility function to generate UUID
+function generateAuthUID() {
+  return crypto.randomUUID();
+}
+
+// Initial admin user only
 const initialUsers: User[] = [
   {
     id: '1',
     username: 'admin',
     password: 'admin123',
     role: 'admin'
-  },
-  {
-    id: '2',
-    username: 'user',
-    password: 'user123',
-    role: 'user'
   }
 ];
 
@@ -87,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const newUser: User = {
-      id: (users.length + 1).toString(),
+      id: generateAuthUID(),
       username,
       password,
       role: 'user'
