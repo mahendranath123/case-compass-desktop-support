@@ -26,22 +26,25 @@ import { CaseStatusToggle } from "@/components/cases/CaseStatusToggle";
 import { CaseStatus, Connectivity, Lead } from "@/types";
 import { useForm } from "react-hook-form";
 import { format } from "date-fns";
-import { CalendarIcon, Clock, Search } from "lucide-react";
+import { CalendarIcon, Clock, Search, Building, MapPin, User, Phone, Mail } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { 
-  Command, 
-  CommandEmpty, 
-  CommandGroup, 
-  CommandInput, 
-  CommandItem, 
-  CommandList
-} from "@/components/ui/command";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface FormValues {
   leadCkt: string;
+  companyName: string;
+  address: string;
+  contactPerson: string;
+  contactInfo: string;
   ipAddress: string;
   connectivity: Connectivity;
   assignedDate: Date;
@@ -58,11 +61,15 @@ export const NewCasePage = () => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
 
   const form = useForm<FormValues>({
     defaultValues: {
       leadCkt: "",
+      companyName: "",
+      address: "",
+      contactPerson: "",
+      contactInfo: "",
       ipAddress: "",
       connectivity: "Stable",
       assignedDate: new Date(),
@@ -73,18 +80,24 @@ export const NewCasePage = () => {
     },
   });
   
-  useEffect(() => {
+  const handleSearch = () => {
     if (searchQuery.trim()) {
       const results = searchLeads(searchQuery);
       setSearchResults(results);
+      setIsSearchDialogOpen(true);
     } else {
-      setSearchResults([]);
+      toast.error("Please enter a search term");
     }
-  }, [searchQuery, searchLeads]);
+  };
   
-  // Update IP address when lead changes
+  // Update form fields when lead changes
   useEffect(() => {
     if (selectedLead) {
+      form.setValue("leadCkt", selectedLead.ckt);
+      form.setValue("companyName", selectedLead.cust_name || "");
+      form.setValue("address", selectedLead.address || "");
+      form.setValue("contactPerson", selectedLead.contact_name || "");
+      form.setValue("contactInfo", selectedLead.email_id || "");
       form.setValue("ipAddress", selectedLead.usable_ip_address || "");
     }
   }, [selectedLead, form]);
@@ -118,9 +131,9 @@ export const NewCasePage = () => {
   };
   
   const handleLeadSelect = (lead: Lead) => {
-    form.setValue("leadCkt", lead.ckt);
     setSelectedLead(lead);
-    setIsSearchOpen(false);
+    setIsSearchDialogOpen(false);
+    setSearchQuery(lead.ckt);
   };
 
   return (
@@ -140,7 +153,7 @@ export const NewCasePage = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
-              {/* Lead Selection */}
+              {/* Lead Search */}
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-medium">Lead Information</h3>
@@ -149,86 +162,115 @@ export const NewCasePage = () => {
                   </p>
                 </div>
 
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <FormLabel>Search Lead</FormLabel>
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="Enter lead number or customer name"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button type="button" onClick={handleSearch}>
+                        <Search className="h-4 w-4 mr-1" /> Search
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Company Info Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="companyName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <div className="flex items-center gap-1">
+                            <Building className="h-4 w-4" />
+                            <span>Company Name</span>
+                          </div>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            <span>Address</span>
+                          </div>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contactPerson"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <div className="flex items-center gap-1">
+                            <User className="h-4 w-4" />
+                            <span>Contact Person</span>
+                          </div>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contactInfo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <div className="flex items-center gap-1">
+                            <Mail className="h-4 w-4" />
+                            <span>Phone/Email</span>
+                          </div>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="leadCkt"
                   render={({ field }) => (
-                    <FormItem className="relative">
-                      <FormLabel>Search Lead</FormLabel>
-                      <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button 
-                              variant="outline" 
-                              role="combobox" 
-                              className={cn(
-                                "w-full justify-between",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? field.value : "Search by lead number or customer name"}
-                              <Search className="ml-2 h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0">
-                          <Command>
-                            <CommandInput 
-                              placeholder="Search lead..." 
-                              onValueChange={(value) => setSearchQuery(value)}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No leads found</CommandEmpty>
-                              <CommandGroup>
-                                {searchResults.map((lead) => (
-                                  <CommandItem
-                                    key={lead.ckt}
-                                    onSelect={() => handleLeadSelect(lead)}
-                                    className="flex flex-col items-start"
-                                  >
-                                    <div className="font-medium">{lead.ckt}</div>
-                                    <div className="text-sm text-muted-foreground">{lead.cust_name}</div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                    <FormItem>
+                      <FormLabel>Lead Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} readOnly />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                {/* Auto-filled Lead Info */}
-                {selectedLead && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-background rounded-lg border">
-                    <div>
-                      <p className="text-sm font-medium">Company Name</p>
-                      <p className="text-sm">{selectedLead.cust_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Address</p>
-                      <p className="text-sm">{selectedLead.address}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Contact Person</p>
-                      <p className="text-sm">{selectedLead.contact_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Email</p>
-                      <p className="text-sm">{selectedLead.email_id}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Bandwidth</p>
-                      <p className="text-sm">{selectedLead.bandwidth}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Device</p>
-                      <p className="text-sm">{selectedLead.device}</p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Case Details */}
@@ -472,6 +514,38 @@ export const NewCasePage = () => {
           </form>
         </Form>
       </Card>
+
+      {/* Lead Search Dialog */}
+      <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Search Results</DialogTitle>
+            <DialogDescription>
+              Select a lead from the search results
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[300px] overflow-y-auto">
+            {searchResults.length > 0 ? (
+              <div className="space-y-2">
+                {searchResults.map((lead) => (
+                  <div 
+                    key={lead.ckt}
+                    className="p-3 border rounded-md hover:bg-accent cursor-pointer"
+                    onClick={() => handleLeadSelect(lead)}
+                  >
+                    <div className="font-medium">{lead.ckt}</div>
+                    <div className="text-sm text-muted-foreground">{lead.cust_name}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-muted-foreground">
+                No leads found. Try a different search term.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
