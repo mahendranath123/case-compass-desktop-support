@@ -12,6 +12,23 @@ export interface Lead {
   device: string;
   bandwidth: string;
   remarks: string;
+  // Added SQL fields
+  pop_name?: string;
+  nas_ip_1?: string;
+  switch_ip_1?: string;
+  port_no_1?: string;
+  vlan_id_1?: string;
+  primary_pop?: string;
+  pop_name_2?: string;
+  nas_ip_2?: string;
+  switch_ip_2?: string;
+  port_no_2?: string;
+  vlan_id_2?: string;
+  subnet_mask?: string;
+  gateway?: string;
+  sales_person?: string;
+  testing_fe?: string;
+  mrtg?: string;
 }
 
 export type CaseStatus = "Pending" | "Overdue" | "Completed" | "OnHold";
@@ -22,8 +39,8 @@ export interface Case {
   leadCkt: string;
   ipAddress: string;
   connectivity: Connectivity;
-  assignedDate: string;
-  dueDate: string;
+  assignedDate: string; // Will now store full datetime ISO string
+  dueDate: string; // Will now store full datetime ISO string
   caseRemarks: string;
   status: CaseStatus;
 }

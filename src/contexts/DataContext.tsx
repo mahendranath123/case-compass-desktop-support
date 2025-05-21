@@ -16,6 +16,8 @@ interface DataContextType {
   updateCase: (updatedCase: Case) => void;
   getLeadByCkt: (ckt: string) => Lead | undefined;
   addLead: (newLead: Omit<Lead, 'sr_no'>) => void;
+  deleteCase: (id: string) => void;
+  searchLeads: (query: string) => Lead[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -42,6 +44,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getLeadByCkt = (ckt: string): Lead | undefined => {
     return leads.find(lead => lead.ckt === ckt);
+  };
+
+  const searchLeads = (query: string): Lead[] => {
+    if (!query.trim()) return [];
+    
+    return leads.filter(lead => 
+      lead.ckt.toLowerCase().includes(query.toLowerCase()) || 
+      lead.cust_name.toLowerCase().includes(query.toLowerCase())
+    );
   };
 
   const addLead = (newLead: Omit<Lead, 'sr_no'>) => {
@@ -82,6 +93,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success('Case updated successfully');
   };
 
+  const deleteCase = (id: string) => {
+    setCases(cases.filter(c => c.id !== id));
+    toast.success('Case deleted successfully');
+  };
+
   return (
     <DataContext.Provider value={{ 
       leads, 
@@ -90,7 +106,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateCaseStatus, 
       updateCase,
       getLeadByCkt,
-      addLead
+      addLead,
+      deleteCase,
+      searchLeads
     }}>
       {children}
     </DataContext.Provider>

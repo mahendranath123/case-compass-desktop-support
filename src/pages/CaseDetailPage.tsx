@@ -20,10 +20,22 @@ import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "@/components/ui/sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Clock, Trash2 } from "lucide-react";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const CaseDetailPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { cases, leads, updateCase } = useData();
+  const { cases, leads, updateCase, deleteCase } = useData();
   const navigate = useNavigate();
   
   const [caseDetails, setCaseDetails] = useState<Case | null>(null);
@@ -35,6 +47,8 @@ export const CaseDetailPage = () => {
   const [connectivity, setConnectivity] = useState<"Stable" | "Unstable" | "Unknown">("Stable");
   const [caseRemarks, setCaseRemarks] = useState("");
   const [status, setStatus] = useState<CaseStatus>("Pending");
+  const [assignedTime, setAssignedTime] = useState("");
+  const [dueTime, setDueTime] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -45,6 +59,13 @@ export const CaseDetailPage = () => {
         setIpAddress(foundCase.ipAddress);
         setConnectivity(foundCase.connectivity);
         setCaseRemarks(foundCase.caseRemarks);
+        
+        // Extract time from dates
+        const assignedDate = new Date(foundCase.assignedDate);
+        setAssignedTime(format(assignedDate, "HH:mm"));
+        
+        const dueDate = new Date(foundCase.dueDate);
+        setDueTime(format(dueDate, "HH:mm"));
         
         const foundLead = leads.find((l) => l.ckt === foundCase.leadCkt);
         if (foundLead) {
@@ -60,17 +81,35 @@ export const CaseDetailPage = () => {
   const handleSave = () => {
     if (!caseDetails) return;
     
+    // Update the date with time
+    const assignedDate = new Date(caseDetails.assignedDate);
+    const [assignedHours, assignedMinutes] = assignedTime.split(":");
+    assignedDate.setHours(parseInt(assignedHours), parseInt(assignedMinutes));
+    
+    const dueDate = new Date(caseDetails.dueDate);
+    const [dueHours, dueMinutes] = dueTime.split(":");
+    dueDate.setHours(parseInt(dueHours), parseInt(dueMinutes));
+    
     const updatedCase: Case = {
       ...caseDetails,
       ipAddress,
       connectivity,
       caseRemarks,
       status,
+      assignedDate: assignedDate.toISOString(),
+      dueDate: dueDate.toISOString(),
     };
     
     updateCase(updatedCase);
     setCaseDetails(updatedCase);
     setEditMode(false);
+  };
+
+  const handleDelete = () => {
+    if (!caseDetails) return;
+    deleteCase(caseDetails.id);
+    toast.success("Case deleted successfully");
+    navigate("/cases");
   };
 
   if (!caseDetails || !leadDetails) {
@@ -84,6 +123,10 @@ export const CaseDetailPage = () => {
   }
 
   const isOverdue = new Date(caseDetails.dueDate) < new Date() && caseDetails.status !== "Completed";
+  const formattedAssignedDate = format(new Date(caseDetails.assignedDate), "PPP");
+  const formattedAssignedTime = format(new Date(caseDetails.assignedDate), "p");
+  const formattedDueDate = format(new Date(caseDetails.dueDate), "PPP");
+  const formattedDueTime = format(new Date(caseDetails.dueDate), "p");
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -94,7 +137,7 @@ export const CaseDetailPage = () => {
             <StatusBadge status={caseDetails.status} />
           </h1>
           <p className="text-muted-foreground">
-            {leadDetails.cust_name} - Created {format(new Date(caseDetails.assignedDate), "PPP")}
+            {leadDetails.cust_name} - Created {formattedAssignedDate}
           </p>
         </div>
         
@@ -107,7 +150,31 @@ export const CaseDetailPage = () => {
               <Button onClick={handleSave}>Save Changes</Button>
             </>
           ) : (
-            <Button onClick={() => setEditMode(true)}>Edit Case</Button>
+            <div className="flex gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete case?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the case for lead {caseDetails.leadCkt}.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button onClick={() => setEditMode(true)}>Edit Case</Button>
+            </div>
           )}
         </div>
       </div>
@@ -164,18 +231,60 @@ export const CaseDetailPage = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-muted-foreground">Assigned Date</p>
-                <p className="font-medium">{format(new Date(caseDetails.assignedDate), "PPP")}</p>
+              <div className="space-y-2">
+                {editMode ? (
+                  <>
+                    <Label>Assigned Date</Label>
+                    <p className="font-medium">{formattedAssignedDate}</p>
+                    
+                    <Label htmlFor="assignedTime">Assigned Time</Label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                      <Input 
+                        id="assignedTime"
+                        type="time"
+                        value={assignedTime} 
+                        onChange={e => setAssignedTime(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">Assigned Date & Time</p>
+                    <p className="font-medium">{formattedAssignedDate} at {formattedAssignedTime}</p>
+                  </>
+                )}
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Due Date</p>
-                <p className={`font-medium ${isOverdue ? "text-status-overdue" : ""}`}>
-                  {format(new Date(caseDetails.dueDate), "PPP")} 
-                  <span className="text-sm ml-2">
-                    ({formatDistanceToNow(new Date(caseDetails.dueDate), { addSuffix: true })})
-                  </span>
-                </p>
+              <div className="space-y-2">
+                {editMode ? (
+                  <>
+                    <Label>Due Date</Label>
+                    <p className="font-medium">{formattedDueDate}</p>
+                    
+                    <Label htmlFor="dueTime">Due Time</Label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                      <Input 
+                        id="dueTime"
+                        type="time"
+                        value={dueTime} 
+                        onChange={e => setDueTime(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">Due Date & Time</p>
+                    <p className={`font-medium ${isOverdue ? "text-status-overdue" : ""}`}>
+                      {formattedDueDate} at {formattedDueTime}
+                      <span className="text-sm ml-2">
+                        ({formatDistanceToNow(new Date(caseDetails.dueDate), { addSuffix: true })})
+                      </span>
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
