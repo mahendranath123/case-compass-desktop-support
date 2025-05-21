@@ -2,7 +2,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Lead, Case, CaseStatus } from '@/types';
 import { toast } from '@/components/ui/sonner';
-import { v4 as uuidv4 } from 'uuid';
+
+// Utility function to generate UUID using the built-in crypto API
+function generateUUID() {
+  return crypto.randomUUID();
+}
 
 // Dummy lead data (would come from API in a real app)
 const dummyLeads: Lead[] = [
@@ -122,7 +126,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addCase = (newCase: Omit<Case, 'id'>) => {
     const caseWithId: Case = {
       ...newCase,
-      id: uuidv4()
+      id: generateUUID()
     };
     
     setCases([...cases, caseWithId]);
