@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Case, Lead } from "@/types";
 import { PlusCircle } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 export const CasesPage = () => {
   const { cases, leads } = useData();
@@ -21,6 +22,22 @@ export const CasesPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<string>("recent");
+
+  useEffect(() => {
+    // Check if we have local JSON data loaded
+    const checkLocalData = async () => {
+      try {
+        const response = await fetch('/lead_demo_yourgpt.json');
+        if (response.ok) {
+          toast.success('Local lead data is available for searching');
+        }
+      } catch (error) {
+        // Silently handle errors - no need to notify if file doesn't exist
+      }
+    };
+    
+    checkLocalData();
+  }, []);
 
   useEffect(() => {
     let result = [...cases];

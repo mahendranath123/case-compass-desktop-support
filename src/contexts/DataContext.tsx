@@ -1,8 +1,8 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Lead, Case, CaseStatus, Connectivity } from '@/types';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { searchLocalLeads, fetchLocalLeadData, mapJsonToLead } from '@/utils/localLeadData';
 
 // Utility function to generate UUID using the built-in crypto API
 function generateUUID() {
@@ -85,6 +85,32 @@ const mapCaseToSupabaseCase = (caseItem: Omit<Case, 'id'>): any => {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
+  const [localLeadsLoaded, setLocalLeadsLoaded] = useState(false);
+
+  // Load local JSON lead data on component mount
+  useEffect(() => {
+    const loadLocalLeads = async () => {
+      try {
+        const localData = await fetchLocalLeadData();
+        if (localData.length > 0) {
+          const mappedLeads = localData.map(mapJsonToLead);
+          setLeads(prevLeads => {
+            // Combine local and Supabase leads, ensuring no duplicates by ckt
+            const existingCkts = new Set(prevLeads.map(lead => lead.ckt));
+            const uniqueLocalLeads = mappedLeads.filter(lead => !existingCkts.has(lead.ckt));
+            return [...prevLeads, ...uniqueLocalLeads];
+          });
+          setLocalLeadsLoaded(true);
+          console.log('Local JSON lead data loaded successfully');
+        }
+      } catch (error) {
+        console.error('Error loading local JSON lead data:', error);
+        toast.error('Failed to load local lead data');
+      }
+    };
+    
+    loadLocalLeads();
+  }, []);
 
   // Fetch leads from Supabase on component mount
   useEffect(() => {
@@ -152,6 +178,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!query.trim()) return [];
     
     try {
+      // First, search local JSON data
+      const localResults = await searchLocalLeads(query);
+      
+      // If we have results from local data, return them
+      if (localResults.length > 0) {
+        return localResults;
+      }
+      
+      // If no local results, try Supabase search
       const { data, error } = await supabase
         .from('leads')
         .select('*')
@@ -166,7 +201,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error searching leads:', error);
       toast.error('Failed to search leads');
       
-      // Fallback to local filtering if Supabase search fails
+      // Fallback to local filtering if both local JSON and Supabase search fail
       return leads.filter(lead => 
         lead.ckt.toLowerCase().includes(query.toLowerCase()) || 
         lead.cust_name.toLowerCase().includes(query.toLowerCase())

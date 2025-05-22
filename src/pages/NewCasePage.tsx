@@ -63,6 +63,7 @@ export const NewCasePage = () => {
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLocalDataAvailable, setIsLocalDataAvailable] = useState(false);
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -81,12 +82,34 @@ export const NewCasePage = () => {
     },
   });
   
+  // Check if local data is available
+  useEffect(() => {
+    const checkLocalData = async () => {
+      try {
+        const response = await fetch('/lead_demo_yourgpt.json');
+        if (response.ok) {
+          setIsLocalDataAvailable(true);
+          toast.success('Local lead database is available for searching');
+        }
+      } catch (error) {
+        // Do nothing if file doesn't exist
+      }
+    };
+    
+    checkLocalData();
+  }, []);
+  
   const handleSearch = async () => {
     if (searchQuery.trim()) {
       setIsSearching(true);
       try {
         const results = await searchLeads(searchQuery);
         setSearchResults(results);
+        if (results.length === 0) {
+          toast.info('No leads found. Try a different search term.');
+        } else {
+          toast.success(`Found ${results.length} leads.`);
+        }
         setIsSearchDialogOpen(true);
       } catch (error) {
         console.error("Error searching leads:", error);
@@ -150,6 +173,11 @@ export const NewCasePage = () => {
       <div>
         <h1 className="text-2xl font-bold">Create New Case</h1>
         <p className="text-muted-foreground">Create a new support case for a customer</p>
+        {isLocalDataAvailable && (
+          <div className="mt-2 text-sm bg-green-50 p-2 rounded border border-green-200">
+            Local lead database is connected and ready for searching
+          </div>
+        )}
       </div>
 
       <Card>
