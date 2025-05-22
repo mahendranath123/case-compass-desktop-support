@@ -62,6 +62,7 @@ export const NewCasePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -80,11 +81,19 @@ export const NewCasePage = () => {
     },
   });
   
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (searchQuery.trim()) {
-      const results = searchLeads(searchQuery);
-      setSearchResults(results);
-      setIsSearchDialogOpen(true);
+      setIsSearching(true);
+      try {
+        const results = await searchLeads(searchQuery);
+        setSearchResults(results);
+        setIsSearchDialogOpen(true);
+      } catch (error) {
+        console.error("Error searching leads:", error);
+        toast.error("Error searching leads");
+      } finally {
+        setIsSearching(false);
+      }
     } else {
       toast.error("Please enter a search term");
     }
@@ -172,8 +181,18 @@ export const NewCasePage = () => {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="flex-1"
                       />
-                      <Button type="button" onClick={handleSearch}>
-                        <Search className="h-4 w-4 mr-1" /> Search
+                      <Button 
+                        type="button" 
+                        onClick={handleSearch} 
+                        disabled={isSearching}
+                      >
+                        {isSearching ? (
+                          <>Searching...</>
+                        ) : (
+                          <>
+                            <Search className="h-4 w-4 mr-1" /> Search
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -540,7 +559,7 @@ export const NewCasePage = () => {
               </div>
             ) : (
               <div className="p-4 text-center text-muted-foreground">
-                No leads found. Try a different search term.
+                {isSearching ? "Searching..." : "No leads found. Try a different search term."}
               </div>
             )}
           </div>

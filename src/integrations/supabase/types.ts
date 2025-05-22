@@ -9,7 +9,149 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      cases: {
+        Row: {
+          assigned_date: string
+          case_remarks: string | null
+          connectivity: string | null
+          created_at: string
+          due_date: string
+          id: string
+          ip_address: string | null
+          lead_ckt: string
+          status: string | null
+        }
+        Insert: {
+          assigned_date: string
+          case_remarks?: string | null
+          connectivity?: string | null
+          created_at?: string
+          due_date: string
+          id?: string
+          ip_address?: string | null
+          lead_ckt: string
+          status?: string | null
+        }
+        Update: {
+          assigned_date?: string
+          case_remarks?: string | null
+          connectivity?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          ip_address?: string | null
+          lead_ckt?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cases_lead_ckt_fkey"
+            columns: ["lead_ckt"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["ckt"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          address: string | null
+          backup: string | null
+          bandwidth: string | null
+          ckt: string
+          comm_date: string | null
+          contact_name: string | null
+          created_at: string
+          cust_name: string
+          device: string | null
+          email_id: string | null
+          gateway: string | null
+          id: string
+          mrtg: string | null
+          nas_ip_1: string | null
+          nas_ip_2: string | null
+          pop_name: string | null
+          pop_name_2: string | null
+          port_no_1: string | null
+          port_no_2: string | null
+          primary_pop: string | null
+          remarks: string | null
+          sales_person: string | null
+          sr_no: string
+          subnet_mask: string | null
+          switch_ip_1: string | null
+          switch_ip_2: string | null
+          testing_fe: string | null
+          usable_ip_address: string | null
+          vlan_id_1: string | null
+          vlan_id_2: string | null
+        }
+        Insert: {
+          address?: string | null
+          backup?: string | null
+          bandwidth?: string | null
+          ckt: string
+          comm_date?: string | null
+          contact_name?: string | null
+          created_at?: string
+          cust_name: string
+          device?: string | null
+          email_id?: string | null
+          gateway?: string | null
+          id?: string
+          mrtg?: string | null
+          nas_ip_1?: string | null
+          nas_ip_2?: string | null
+          pop_name?: string | null
+          pop_name_2?: string | null
+          port_no_1?: string | null
+          port_no_2?: string | null
+          primary_pop?: string | null
+          remarks?: string | null
+          sales_person?: string | null
+          sr_no: string
+          subnet_mask?: string | null
+          switch_ip_1?: string | null
+          switch_ip_2?: string | null
+          testing_fe?: string | null
+          usable_ip_address?: string | null
+          vlan_id_1?: string | null
+          vlan_id_2?: string | null
+        }
+        Update: {
+          address?: string | null
+          backup?: string | null
+          bandwidth?: string | null
+          ckt?: string
+          comm_date?: string | null
+          contact_name?: string | null
+          created_at?: string
+          cust_name?: string
+          device?: string | null
+          email_id?: string | null
+          gateway?: string | null
+          id?: string
+          mrtg?: string | null
+          nas_ip_1?: string | null
+          nas_ip_2?: string | null
+          pop_name?: string | null
+          pop_name_2?: string | null
+          port_no_1?: string | null
+          port_no_2?: string | null
+          primary_pop?: string | null
+          remarks?: string | null
+          sales_person?: string | null
+          sr_no?: string
+          subnet_mask?: string | null
+          switch_ip_1?: string | null
+          switch_ip_2?: string | null
+          testing_fe?: string | null
+          usable_ip_address?: string | null
+          vlan_id_1?: string | null
+          vlan_id_2?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

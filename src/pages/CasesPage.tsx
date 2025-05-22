@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Case } from "@/types";
+import { Case, Lead } from "@/types";
 import { PlusCircle } from "lucide-react";
 
 export const CasesPage = () => {
