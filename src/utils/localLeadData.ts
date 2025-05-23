@@ -101,7 +101,7 @@ export const fetchLocalLeadData = async (): Promise<LocalLeadData[]> => {
 };
 
 /**
- * Search the local JSON lead data
+ * Search the local JSON lead data with enhanced matching and debugging
  */
 export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
   if (!query.trim()) {
@@ -111,24 +111,40 @@ export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
   const localData = await fetchLocalLeadData();
   const searchTerm = query.toLowerCase();
   
-  console.log('Searching for:', searchTerm, 'in local data:', localData);
+  console.log(`Searching for: "${searchTerm}" in ${localData.length} local records`);
   
   // Search through multiple fields with improved partial matching
   const results = localData.filter(lead => {
-    // Check if CKT contains the search term (with or without the "CKT" prefix)
-    const cktMatches = lead.ckt?.toLowerCase().includes(searchTerm) || 
-                      (lead.ckt?.toLowerCase().replace('ckt', '').includes(searchTerm));
+    // Clean and normalize the CKT field for comparison
+    const leadCkt = (lead.ckt || '').toLowerCase();
+    const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
     
-    // Check other fields
-    const nameMatches = lead.cust_name?.toLowerCase().includes(searchTerm);
-    const addressMatches = lead.address?.toLowerCase().includes(searchTerm);
-    const contactMatches = lead.contact_name?.toLowerCase().includes(searchTerm);
-    const emailMatches = lead.email_id?.toLowerCase().includes(searchTerm);
+    // Check for matches in various fields
+    const cktMatches = 
+      leadCkt.includes(searchTerm) || 
+      cktWithoutPrefix.includes(searchTerm) ||
+      (searchTerm.includes(leadCkt) && leadCkt.length > 2) ||
+      (searchTerm.includes(cktWithoutPrefix) && cktWithoutPrefix.length > 2);
     
-    return cktMatches || nameMatches || addressMatches || contactMatches || emailMatches;
+    const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
+    const addressMatches = (lead.address || '').toLowerCase().includes(searchTerm);
+    const contactMatches = (lead.contact_name || '').toLowerCase().includes(searchTerm);
+    const emailMatches = (lead.email_id || '').toLowerCase().includes(searchTerm);
+    const ipAddressMatches = (lead.usable_ip_address || '').includes(searchTerm);
+    
+    const isMatch = cktMatches || nameMatches || addressMatches || contactMatches || emailMatches || ipAddressMatches;
+    
+    // Debug logging for each lead check
+    if (isMatch) {
+      console.log(`Match found: ${lead.ckt} - ${lead.cust_name}`);
+      console.log(`  CKT match: ${cktMatches}, Name match: ${nameMatches}, Address match: ${addressMatches}`);
+      console.log(`  Contact match: ${contactMatches}, Email match: ${emailMatches}, IP match: ${ipAddressMatches}`);
+    }
+    
+    return isMatch;
   });
   
-  console.log('Search results:', results);
+  console.log(`Search completed. Found ${results.length} matches for "${searchTerm}"`);
   
   // Map to the application Lead type
   return results.map(mapJsonToLead);
