@@ -93,7 +93,7 @@
     "remarks": "Enterprise customer with 24/7 support",
     "mrtg": "Enabled"
   }
-  [
+  
     {
         "sr_no": "Active",
         "ckt": "1342",
@@ -124,7 +124,7 @@
         "device": "",
         "remarks": "CAV Aero Services LLP name has been changed to Vman Aero Services (Data update - 12/02/2021)",
         "mrtg": "http://103.123.225.89:4040/graphs/queue/Vman%5FAero%5FServices%5FCKT%5F1342/"
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "1353",
@@ -155,7 +155,7 @@
         "device": "",
         "remarks": "Upgraded 120 Mbps dt. 1 July22",
         "mrtg": ""
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "1343",
@@ -186,7 +186,7 @@
         "device": "",
         "remarks": "Upgraded from 20 Mbps to 25 Mbps 15 May 2024\r\nUpgraded from 15Mbps to 20 Mbps, date?",
         "mrtg": "http://103.123.225.89:9090/graphs/queue/Hotel%20Ashwin%20Pvt.%20Ltd/"
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "1350",
@@ -217,7 +217,7 @@
         "device": "",
         "remarks": "Upgraded from 6 to 10 @12 feb 2021",
         "mrtg": "http://103.123.225.81:8080/graphs/queue/Vijay_Sales_Bhandup/"
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "1347",
@@ -248,7 +248,7 @@
         "device": "",
         "remarks": "Upgraded from 6 to 10 @12 feb 2021",
         "mrtg": "mrtg1.jeebr.net/cacti"
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "1346",
@@ -279,7 +279,7 @@
         "device": "",
         "remarks": "Upgraded from 6 to 10 @12 feb 2021",
         "mrtg": "mrtg1.jeebr.net"
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "1345",
@@ -310,7 +310,7 @@
         "device": "",
         "remarks": "Upgraded from 50Mbps to 100 Mbps, date?",
         "mrtg": "http://103.123.225.69:4040/graphs/queue/Vijay%5FSales%5FJogeshwari/"
-    },
+    }
     {
         "sr_no": "Active",
         "ckt": "CKT1354",
