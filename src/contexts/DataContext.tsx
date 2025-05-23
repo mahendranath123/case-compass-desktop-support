@@ -101,7 +101,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return [...prevLeads, ...uniqueLocalLeads];
           });
           setLocalLeadsLoaded(true);
-          console.log('Local JSON lead data loaded successfully');
+          console.log('Local JSON lead data loaded successfully', localData);
+          toast.success(`Loaded ${localData.length} local leads successfully`);
         }
       } catch (error) {
         console.error('Error loading local JSON lead data:', error);
@@ -183,6 +184,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // If we have results from local data, return them
       if (localResults.length > 0) {
+        console.log('Local search results:', localResults);
         return localResults;
       }
       

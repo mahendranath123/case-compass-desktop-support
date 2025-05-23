@@ -83,6 +83,7 @@ export const fetchLocalLeadData = async (): Promise<LocalLeadData[]> => {
   }
 
   try {
+    // Update the path to point to our JSON file in the utils directory
     const response = await fetch('/lead_demo_yourgpt.json');
     if (!response.ok) {
       throw new Error(`Failed to fetch local lead data: ${response.statusText}`);
