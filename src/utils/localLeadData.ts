@@ -79,11 +79,12 @@ export const mapJsonToLead = (jsonLead: LocalLeadData): Lead => {
  */
 export const fetchLocalLeadData = async (): Promise<LocalLeadData[]> => {
   if (cachedLeadData) {
+    console.log('Using cached lead data', cachedLeadData);
     return cachedLeadData;
   }
 
   try {
-    // Update the path to point to our JSON file in the utils directory
+    // The file should be in the public directory
     const response = await fetch('/lead_demo_yourgpt.json');
     if (!response.ok) {
       throw new Error(`Failed to fetch local lead data: ${response.statusText}`);
@@ -91,6 +92,7 @@ export const fetchLocalLeadData = async (): Promise<LocalLeadData[]> => {
 
     const data = await response.json();
     cachedLeadData = Array.isArray(data) ? data : [];
+    console.log('Fetched local lead data successfully', cachedLeadData);
     return cachedLeadData;
   } catch (error) {
     console.error('Error fetching local lead data:', error);
@@ -109,14 +111,24 @@ export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
   const localData = await fetchLocalLeadData();
   const searchTerm = query.toLowerCase();
   
-  // Search through multiple fields
-  const results = localData.filter(lead => 
-    lead.ckt?.toLowerCase().includes(searchTerm) ||
-    lead.cust_name?.toLowerCase().includes(searchTerm) ||
-    lead.address?.toLowerCase().includes(searchTerm) ||
-    lead.contact_name?.toLowerCase().includes(searchTerm) ||
-    lead.email_id?.toLowerCase().includes(searchTerm)
-  );
+  console.log('Searching for:', searchTerm, 'in local data:', localData);
+  
+  // Search through multiple fields with improved partial matching
+  const results = localData.filter(lead => {
+    // Check if CKT contains the search term (with or without the "CKT" prefix)
+    const cktMatches = lead.ckt?.toLowerCase().includes(searchTerm) || 
+                      (lead.ckt?.toLowerCase().replace('ckt', '').includes(searchTerm));
+    
+    // Check other fields
+    const nameMatches = lead.cust_name?.toLowerCase().includes(searchTerm);
+    const addressMatches = lead.address?.toLowerCase().includes(searchTerm);
+    const contactMatches = lead.contact_name?.toLowerCase().includes(searchTerm);
+    const emailMatches = lead.email_id?.toLowerCase().includes(searchTerm);
+    
+    return cktMatches || nameMatches || addressMatches || contactMatches || emailMatches;
+  });
+  
+  console.log('Search results:', results);
   
   // Map to the application Lead type
   return results.map(mapJsonToLead);
