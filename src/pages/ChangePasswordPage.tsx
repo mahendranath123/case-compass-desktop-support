@@ -9,30 +9,39 @@ import { Label } from "@/components/ui/label";
 import { Lock } from "lucide-react";
 
 export const ChangePasswordPage = () => {
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { changePassword } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
     if (newPassword !== confirmPassword) {
       setError("New passwords don't match");
+      setIsLoading(false);
       return;
     }
 
     if (newPassword.length < 6) {
       setError("New password must be at least 6 characters");
+      setIsLoading(false);
       return;
     }
 
-    const success = changePassword(currentPassword, newPassword);
-    if (success) {
-      navigate("/dashboard");
+    try {
+      const success = await changePassword(newPassword);
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      setError("Failed to change password");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -48,25 +57,10 @@ export const ChangePasswordPage = () => {
           <CardHeader>
             <CardTitle>Update Password</CardTitle>
             <CardDescription>
-              Enter your current password and then your new password
+              Enter your new password below
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-                <Input
-                  id="currentPassword"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-            
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <div className="relative">
@@ -77,6 +71,7 @@ export const ChangePasswordPage = () => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="pl-10"
+                  placeholder="Enter new password"
                   required
                 />
               </div>
@@ -92,6 +87,7 @@ export const ChangePasswordPage = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="pl-10"
+                  placeholder="Confirm new password"
                   required
                 />
               </div>
@@ -104,10 +100,13 @@ export const ChangePasswordPage = () => {
               type="button" 
               variant="outline"
               onClick={() => navigate("/dashboard")}
+              disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button type="submit">Update Password</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Updating..." : "Update Password"}
+            </Button>
           </CardFooter>
         </form>
       </Card>
