@@ -15,6 +15,7 @@ export type Database = {
           case_remarks: string | null
           connectivity: string | null
           created_at: string
+          created_by: string | null
           due_date: string
           id: string
           ip_address: string | null
@@ -26,6 +27,7 @@ export type Database = {
           case_remarks?: string | null
           connectivity?: string | null
           created_at?: string
+          created_by?: string | null
           due_date: string
           id?: string
           ip_address?: string | null
@@ -37,6 +39,7 @@ export type Database = {
           case_remarks?: string | null
           connectivity?: string | null
           created_at?: string
+          created_by?: string | null
           due_date?: string
           id?: string
           ip_address?: string | null
@@ -149,6 +152,33 @@ export type Database = {
           usable_ip_address?: string | null
           vlan_id_1?: string | null
           vlan_id_2?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          role?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          role?: string
+          updated_at?: string
+          username?: string
         }
         Relationships: []
       }

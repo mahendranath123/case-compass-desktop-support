@@ -277,9 +277,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addCase = async (newCase: Omit<Case, 'id'>) => {
     try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error('You must be logged in to create cases');
+        return;
+      }
+
+      const caseData = {
+        ...mapCaseToSupabaseCase(newCase),
+        created_by: user.id
+      };
+
       const { data, error } = await supabase
         .from('cases')
-        .insert(mapCaseToSupabaseCase(newCase))
+        .insert(caseData)
         .select()
         .single();
         

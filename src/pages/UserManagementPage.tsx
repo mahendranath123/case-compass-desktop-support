@@ -7,39 +7,62 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "@/components/ui/sonner";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 
 export const UserManagementPage = () => {
-  const { users, authState, createUser } = useAuth();
-  const [username, setUsername] = useState("");
+  const { users, authState, createUser, loading } = useAuth();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsSubmitting(true);
+
+    if (!email || !email.includes("@")) {
+      setError("Please enter a valid email address");
+      setIsSubmitting(false);
+      return;
+    }
 
     if (username.length < 3) {
       setError("Username must be at least 3 characters");
+      setIsSubmitting(false);
       return;
     }
 
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
+      setIsSubmitting(false);
       return;
     }
 
-    const success = createUser(username, password);
+    const success = await createUser(email, password, username, fullName);
     if (success) {
-      setUsername("");
+      setEmail("");
       setPassword("");
+      setUsername("");
+      setFullName("");
       setIsDialogOpen(false);
     }
+    setIsSubmitting(false);
   };
 
-  if (authState.user?.role !== "admin") {
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto py-8 text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+        <p className="text-muted-foreground">Loading user management...</p>
+      </div>
+    );
+  }
+
+  if (authState.profile?.role !== "admin") {
     return (
       <div className="max-w-3xl mx-auto py-8 text-center">
         <Alert variant="destructive" className="mb-4">
@@ -80,6 +103,18 @@ export const UserManagementPage = () => {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
                   <Input
                     id="username"
@@ -87,6 +122,16 @@ export const UserManagementPage = () => {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Enter username"
                     required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name (Optional)</Label>
+                  <Input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Enter full name"
                   />
                 </div>
                 
@@ -109,10 +154,24 @@ export const UserManagementPage = () => {
               </div>
               
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsDialogOpen(false)}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </Button>
-                <Button type="submit">Create User</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create User'
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -145,18 +204,15 @@ export const UserManagementPage = () => {
                 >
                   <div>
                     <p className="font-medium">{user.username}</p>
+                    {user.full_name && (
+                      <p className="text-sm text-muted-foreground">{user.full_name}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       Role: {user.role === "admin" ? "Administrator" : "Support Agent"}
                     </p>
-                  </div>
-                  <div className="space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toast.info("Password reset functionality would be implemented here")}
-                    >
-                      Reset Password
-                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Created: {new Date(user.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               ))}

@@ -16,8 +16,8 @@ export const Header = () => {
   const { authState, logout } = useAuth();
   const navigate = useNavigate();
   
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
   
@@ -47,16 +47,28 @@ export const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
                   <UserCircle className="h-4 w-4" />
-                  {authState.user?.username}
+                  {authState.profile?.username || authState.user?.email?.split('@')[0] || 'User'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Account</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {authState.profile?.full_name || authState.profile?.username || 'User'}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {authState.user?.email}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      Role: {authState.profile?.role === 'admin' ? 'Administrator' : 'Support Agent'}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handlePasswordChange}>
                   Change Password
                 </DropdownMenuItem>
-                {authState.user?.role === 'admin' && (
+                {authState.profile?.role === 'admin' && (
                   <DropdownMenuItem onClick={handleUserManagement}>
                     User Management
                   </DropdownMenuItem>

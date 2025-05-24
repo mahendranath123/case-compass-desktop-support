@@ -1,125 +1,235 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { User, AuthState } from '@/types';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 
-// Utility function to generate UUID
-function generateAuthUID() {
-  return crypto.randomUUID();
+interface UserProfile {
+  id: string;
+  username: string;
+  full_name?: string;
+  role: 'admin' | 'user';
+  created_at: string;
+  updated_at: string;
 }
 
-// Initial admin user only
-const initialUsers: User[] = [
-  {
-    id: '1',
-    username: 'admin',
-    password: 'admin123',
-    role: 'admin'
-  }
-];
+interface AuthState {
+  user: User | null;
+  profile: UserProfile | null;
+  isAuthenticated: boolean;
+}
 
 interface AuthContextType {
   authState: AuthState;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
-  createUser: (username: string, password: string) => boolean;
-  changePassword: (oldPassword: string, newPassword: string) => boolean;
-  users: User[];
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  signUp: (email: string, password: string, username: string, fullName?: string) => Promise<boolean>;
+  createUser: (email: string, password: string, username: string, fullName?: string) => Promise<boolean>;
+  changePassword: (newPassword: string) => Promise<boolean>;
+  users: UserProfile[];
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem('supportAppUsers');
-    return savedUsers ? JSON.parse(savedUsers) : initialUsers;
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    profile: null,
+    isAuthenticated: false
   });
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    const savedUser = localStorage.getItem('supportAppUser');
-    return {
-      user: savedUser ? JSON.parse(savedUser) : null,
-      isAuthenticated: !!savedUser
-    };
-  });
+  // Fetch user profile
+  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
+      if (error) throw error;
+      return data as UserProfile;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  };
+
+  // Fetch all users (admin only)
+  const fetchAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsers(data as UserProfile[]);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  // Initialize auth state
   useEffect(() => {
-    localStorage.setItem('supportAppUsers', JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
-    if (authState.user) {
-      localStorage.setItem('supportAppUser', JSON.stringify(authState.user));
-    } else {
-      localStorage.removeItem('supportAppUser');
-    }
-  }, [authState]);
-
-  const login = (username: string, password: string): boolean => {
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-      setAuthState({
-        user,
-        isAuthenticated: true
-      });
-      toast.success(`Welcome back, ${username}!`);
-      return true;
-    }
-    
-    toast.error('Invalid username or password');
-    return false;
-  };
-
-  const logout = () => {
-    setAuthState({
-      user: null,
-      isAuthenticated: false
-    });
-    toast.info('You have been logged out');
-  };
-
-  const createUser = (username: string, password: string): boolean => {
-    if (users.some(u => u.username === username)) {
-      toast.error('Username already exists');
-      return false;
-    }
-
-    const newUser: User = {
-      id: generateAuthUID(),
-      username,
-      password,
-      role: 'user'
-    };
-
-    setUsers([...users, newUser]);
-    toast.success(`User ${username} created successfully`);
-    return true;
-  };
-
-  const changePassword = (oldPassword: string, newPassword: string): boolean => {
-    if (!authState.user) {
-      toast.error('You must be logged in to change your password');
-      return false;
-    }
-
-    if (authState.user.password !== oldPassword) {
-      toast.error('Current password is incorrect');
-      return false;
-    }
-
-    const updatedUsers = users.map(user => 
-      user.id === authState.user?.id ? { ...user, password: newPassword } : user
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          const profile = await fetchUserProfile(session.user.id);
+          setAuthState({
+            user: session.user,
+            profile,
+            isAuthenticated: true
+          });
+          
+          // Fetch all users if admin
+          if (profile?.role === 'admin') {
+            await fetchAllUsers();
+          }
+        } else {
+          setAuthState({
+            user: null,
+            profile: null,
+            isAuthenticated: false
+          });
+          setUsers([]);
+        }
+        setLoading(false);
+      }
     );
 
-    setUsers(updatedUsers);
-    setAuthState({
-      user: { ...authState.user, password: newPassword },
-      isAuthenticated: true
+    // Check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const profile = await fetchUserProfile(session.user.id);
+        setAuthState({
+          user: session.user,
+          profile,
+          isAuthenticated: true
+        });
+        
+        // Fetch all users if admin
+        if (profile?.role === 'admin') {
+          await fetchAllUsers();
+        }
+      }
+      setLoading(false);
     });
-    
-    toast.success('Password changed successfully');
-    return true;
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast.success(`Welcome back!`);
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
+      return false;
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      await supabase.auth.signOut();
+      toast.info('You have been logged out');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      toast.error('Logout failed');
+    }
+  };
+
+  const signUp = async (email: string, password: string, username: string, fullName?: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            full_name: fullName || ''
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast.success('Account created successfully! Please check your email to verify your account.');
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      toast.error(error.message || 'Sign up failed');
+      return false;
+    }
+  };
+
+  const createUser = async (email: string, password: string, username: string, fullName?: string): Promise<boolean> => {
+    if (authState.profile?.role !== 'admin') {
+      toast.error('Only administrators can create users');
+      return false;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        user_metadata: {
+          username,
+          full_name: fullName || ''
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast.success(`User ${username} created successfully`);
+        await fetchAllUsers(); // Refresh users list
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error('Create user error:', error);
+      toast.error(error.message || 'Failed to create user');
+      return false;
+    }
+  };
+
+  const changePassword = async (newPassword: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast.success('Password changed successfully');
+      return true;
+    } catch (error: any) {
+      console.error('Change password error:', error);
+      toast.error(error.message || 'Failed to change password');
+      return false;
+    }
   };
 
   return (
@@ -127,9 +237,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       authState, 
       login, 
       logout,
+      signUp,
       createUser,
       changePassword,
-      users 
+      users,
+      loading
     }}>
       {children}
     </AuthContext.Provider>
