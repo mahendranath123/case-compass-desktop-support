@@ -19,6 +19,7 @@ interface DataContextType {
   addLead: (newLead: Omit<Lead, 'sr_no'>) => void;
   deleteCase: (id: string) => void;
   searchLeads: (query: string) => Promise<Lead[]>;
+  isLoading: boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -85,91 +86,93 @@ const mapCaseToSupabaseCase = (caseItem: Omit<Case, 'id'>): any => {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
-  const [localLeadsLoaded, setLocalLeadsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load local JSON lead data on component mount
+  // Load data on component mount with better error handling
   useEffect(() => {
-    const loadLocalLeads = async () => {
+    const loadData = async () => {
+      setIsLoading(true);
+      
       try {
-        const localData = await fetchLocalLeadData();
-        if (localData.length > 0) {
-          const mappedLeads = localData.map(mapJsonToLead);
-          setLeads(prevLeads => {
-            // Combine local and Supabase leads, ensuring no duplicates by ckt
-            const existingCkts = new Set(prevLeads.map(lead => lead.ckt));
-            const uniqueLocalLeads = mappedLeads.filter(lead => !existingCkts.has(lead.ckt));
-            return [...prevLeads, ...uniqueLocalLeads];
-          });
-          setLocalLeadsLoaded(true);
-          console.log('Local JSON lead data loaded successfully', localData);
-          toast.success(`Loaded ${localData.length} local leads successfully`);
+        // Load Supabase data first
+        await Promise.all([fetchLeads(), fetchCases()]);
+        
+        // Try to load local JSON data as fallback/supplement
+        try {
+          const localData = await fetchLocalLeadData();
+          if (localData.length > 0) {
+            const mappedLeads = localData.map(mapJsonToLead);
+            setLeads(prevLeads => {
+              const existingCkts = new Set(prevLeads.map(lead => lead.ckt));
+              const uniqueLocalLeads = mappedLeads.filter(lead => !existingCkts.has(lead.ckt));
+              return [...prevLeads, ...uniqueLocalLeads];
+            });
+            console.log('Local JSON lead data loaded successfully');
+          }
+        } catch (localError) {
+          // Silently handle local data loading errors - it's optional
+          console.log('Local data not available, continuing with Supabase data only');
         }
       } catch (error) {
-        console.error('Error loading local JSON lead data:', error);
-        toast.error('Failed to load local lead data');
+        console.error('Error loading data:', error);
+        toast.error('Failed to load data');
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    loadLocalLeads();
+    loadData();
   }, []);
 
-  // Fetch leads from Supabase on component mount
-  useEffect(() => {
-    const fetchLeads = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*');
-          
-        if (error) {
-          throw error;
-        }
+  const fetchLeads = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*');
         
-        if (data) {
-          const mappedLeads = data.map(mapSupabaseLeadToLead);
-          setLeads(mappedLeads);
-        }
-      } catch (error) {
-        console.error('Error fetching leads:', error);
-        toast.error('Failed to load leads data');
-        
-        // Fallback to localStorage if Supabase fetch fails
-        const savedLeads = localStorage.getItem('supportAppLeads');
-        if (savedLeads) {
-          setLeads(JSON.parse(savedLeads));
-        }
+      if (error) {
+        throw error;
       }
-    };
-
-    const fetchCases = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('cases')
-          .select('*');
-          
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          const mappedCases = data.map(mapSupabaseCaseToCase);
-          setCases(mappedCases);
-        }
-      } catch (error) {
-        console.error('Error fetching cases:', error);
-        toast.error('Failed to load cases data');
-        
-        // Fallback to localStorage if Supabase fetch fails
-        const savedCases = localStorage.getItem('supportAppCases');
-        if (savedCases) {
-          setCases(JSON.parse(savedCases));
-        }
+      
+      if (data) {
+        const mappedLeads = data.map(mapSupabaseLeadToLead);
+        setLeads(mappedLeads);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+      
+      // Fallback to localStorage if Supabase fetch fails
+      const savedLeads = localStorage.getItem('supportAppLeads');
+      if (savedLeads) {
+        setLeads(JSON.parse(savedLeads));
+      }
+    }
+  };
 
-    fetchLeads();
-    fetchCases();
-  }, []);
+  const fetchCases = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .select('*');
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        const mappedCases = data.map(mapSupabaseCaseToCase);
+        setCases(mappedCases);
+      }
+    } catch (error) {
+      console.error('Error fetching cases:', error);
+      
+      // Fallback to localStorage if Supabase fetch fails
+      const savedCases = localStorage.getItem('supportAppCases');
+      if (savedCases) {
+        setCases(JSON.parse(savedCases));
+      }
+    }
+  };
 
   const getLeadByCkt = (ckt: string): Lead | undefined => {
     return leads.find(lead => lead.ckt === ckt);
@@ -178,13 +181,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const searchLeads = async (query: string): Promise<Lead[]> => {
     if (!query.trim()) return [];
     
+    const searchTerm = query.toLowerCase();
+    
     try {
-      // First, search local JSON data
-      const localResults = await searchLocalLeads(query);
+      // Fast local search first - search in memory
+      const localResults = leads.filter(lead => {
+        const leadCkt = (lead.ckt || '').toLowerCase();
+        const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
+        
+        const cktMatches = 
+          leadCkt.includes(searchTerm) || 
+          cktWithoutPrefix.includes(searchTerm);
+        
+        const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
+        const addressMatches = (lead.address || '').toLowerCase().includes(searchTerm);
+        const contactMatches = (lead.contact_name || '').toLowerCase().includes(searchTerm);
+        const emailMatches = (lead.email_id || '').toLowerCase().includes(searchTerm);
+        const ipAddressMatches = (lead.usable_ip_address || '').includes(searchTerm);
+        
+        return cktMatches || nameMatches || addressMatches || contactMatches || emailMatches || ipAddressMatches;
+      });
       
-      // If we have results from local data, return them
+      // If we have local results, return them immediately for speed
       if (localResults.length > 0) {
-        console.log('Local search results:', localResults);
         return localResults;
       }
       
@@ -201,12 +220,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return data ? data.map(mapSupabaseLeadToLead) : [];
     } catch (error) {
       console.error('Error searching leads:', error);
-      toast.error('Failed to search leads');
       
-      // Fallback to local filtering if both local JSON and Supabase search fail
+      // Final fallback to simple local filtering
       return leads.filter(lead => 
-        lead.ckt.toLowerCase().includes(query.toLowerCase()) || 
-        lead.cust_name.toLowerCase().includes(query.toLowerCase())
+        lead.ckt.toLowerCase().includes(searchTerm) || 
+        lead.cust_name.toLowerCase().includes(searchTerm)
       );
     }
   };
@@ -420,7 +438,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getLeadByCkt,
       addLead,
       deleteCase,
-      searchLeads
+      searchLeads,
+      isLoading
     }}>
       {children}
     </DataContext.Provider>

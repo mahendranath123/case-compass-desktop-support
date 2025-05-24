@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { DataProvider } from "@/contexts/DataContext";
+import { DataProvider, useData } from "@/contexts/DataContext";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { CasesPage } from "@/pages/CasesPage";
@@ -31,6 +31,24 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Loading wrapper component
+const LoadingWrapper = ({ children }: { children: React.ReactNode }) => {
+  const { isLoading } = useData();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading application data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+};
+
 const AppRoutes = () => {
   const { authState, loading } = useAuth();
   
@@ -39,7 +57,7 @@ const AppRoutes = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-16 w-16 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading application...</p>
+          <p className="text-muted-foreground">Initializing application...</p>
         </div>
       </div>
     );
@@ -54,7 +72,9 @@ const AppRoutes = () => {
       <Route path="/" element={
         <ProtectedRoute>
           <Layout>
-            <DashboardPage />
+            <LoadingWrapper>
+              <DashboardPage />
+            </LoadingWrapper>
           </Layout>
         </ProtectedRoute>
       } />
@@ -62,7 +82,9 @@ const AppRoutes = () => {
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Layout>
-            <DashboardPage />
+            <LoadingWrapper>
+              <DashboardPage />
+            </LoadingWrapper>
           </Layout>
         </ProtectedRoute>
       } />
@@ -70,7 +92,9 @@ const AppRoutes = () => {
       <Route path="/cases" element={
         <ProtectedRoute>
           <Layout>
-            <CasesPage />
+            <LoadingWrapper>
+              <CasesPage />
+            </LoadingWrapper>
           </Layout>
         </ProtectedRoute>
       } />
@@ -78,7 +102,9 @@ const AppRoutes = () => {
       <Route path="/case/:id" element={
         <ProtectedRoute>
           <Layout>
-            <CaseDetailPage />
+            <LoadingWrapper>
+              <CaseDetailPage />
+            </LoadingWrapper>
           </Layout>
         </ProtectedRoute>
       } />
@@ -86,7 +112,9 @@ const AppRoutes = () => {
       <Route path="/new-case" element={
         <ProtectedRoute>
           <Layout>
-            <NewCasePage />
+            <LoadingWrapper>
+              <NewCasePage />
+            </LoadingWrapper>
           </Layout>
         </ProtectedRoute>
       } />

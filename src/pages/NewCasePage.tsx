@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import {
@@ -63,7 +62,6 @@ export const NewCasePage = () => {
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLocalDataAvailable, setIsLocalDataAvailable] = useState(false);
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -82,45 +80,51 @@ export const NewCasePage = () => {
     },
   });
   
-  // Check if local data is available
-  useEffect(() => {
-    const checkLocalData = async () => {
-      try {
-        const response = await fetch('/lead_demo_yourgpt.json');
-        if (response.ok) {
-          setIsLocalDataAvailable(true);
-          toast.success('Local lead database is available for searching');
-        }
-      } catch (error) {
-        // Do nothing if file doesn't exist
-      }
-    };
-    
-    checkLocalData();
-  }, []);
+  // Debounced search function for better performance
+  const debouncedSearch = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return async (query: string) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(async () => {
+          if (query.trim()) {
+            setIsSearching(true);
+            try {
+              const results = await searchLeads(query);
+              setSearchResults(results);
+              if (results.length === 0) {
+                toast.info('No leads found. Try a different search term.');
+              } else {
+                toast.success(`Found ${results.length} leads.`);
+              }
+              setIsSearchDialogOpen(true);
+            } catch (error) {
+              console.error("Error searching leads:", error);
+              toast.error("Error searching leads");
+            } finally {
+              setIsSearching(false);
+            }
+          }
+        }, 300); // 300ms debounce
+      };
+    })(),
+    [searchLeads]
+  );
   
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (searchQuery.trim()) {
-      setIsSearching(true);
-      try {
-        const results = await searchLeads(searchQuery);
-        setSearchResults(results);
-        if (results.length === 0) {
-          toast.info('No leads found. Try a different search term.');
-        } else {
-          toast.success(`Found ${results.length} leads.`);
-        }
-        setIsSearchDialogOpen(true);
-      } catch (error) {
-        console.error("Error searching leads:", error);
-        toast.error("Error searching leads");
-      } finally {
-        setIsSearching(false);
-      }
+      debouncedSearch(searchQuery);
     } else {
       toast.error("Please enter a search term");
     }
   };
+
+  // Auto-search when user types (with debounce)
+  useEffect(() => {
+    if (searchQuery.trim().length > 2) {
+      debouncedSearch(searchQuery);
+    }
+  }, [searchQuery, debouncedSearch]);
   
   // Update form fields when lead changes
   useEffect(() => {
@@ -173,11 +177,6 @@ export const NewCasePage = () => {
       <div>
         <h1 className="text-2xl font-bold">Create New Case</h1>
         <p className="text-muted-foreground">Create a new support case for a customer</p>
-        {isLocalDataAvailable && (
-          <div className="mt-2 text-sm bg-green-50 p-2 rounded border border-green-200">
-            Local lead database is connected and ready for searching
-          </div>
-        )}
       </div>
 
       <Card>
@@ -208,11 +207,18 @@ export const NewCasePage = () => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSearch();
+                          }
+                        }}
                       />
                       <Button 
                         type="button" 
                         onClick={handleSearch} 
                         disabled={isSearching}
+                        size="default"
                       >
                         {isSearching ? (
                           <>Searching...</>
@@ -223,6 +229,11 @@ export const NewCasePage = () => {
                         )}
                       </Button>
                     </div>
+                    {searchQuery.length > 0 && searchQuery.length <= 2 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Type at least 3 characters for auto-search
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -577,11 +588,14 @@ export const NewCasePage = () => {
                 {searchResults.map((lead) => (
                   <div 
                     key={lead.ckt}
-                    className="p-3 border rounded-md hover:bg-accent cursor-pointer"
+                    className="p-3 border rounded-md hover:bg-accent cursor-pointer transition-colors"
                     onClick={() => handleLeadSelect(lead)}
                   >
                     <div className="font-medium">{lead.ckt}</div>
                     <div className="text-sm text-muted-foreground">{lead.cust_name}</div>
+                    {lead.address && (
+                      <div className="text-xs text-muted-foreground">{lead.address}</div>
+                    )}
                   </div>
                 ))}
               </div>

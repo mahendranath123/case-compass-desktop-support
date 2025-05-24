@@ -37,6 +37,7 @@ export interface LocalLeadData {
 
 // Create a cache for the JSON data to avoid repeated fetches
 let cachedLeadData: LocalLeadData[] | null = null;
+let fetchAttempted = false;
 
 /**
  * Map the local JSON data format to the Lead type used in the application
@@ -75,33 +76,57 @@ export const mapJsonToLead = (jsonLead: LocalLeadData): Lead => {
 };
 
 /**
- * Fetch the local JSON lead data
+ * Fetch the local JSON lead data with improved error handling
  */
 export const fetchLocalLeadData = async (): Promise<LocalLeadData[]> => {
+  // Return cached data if available
   if (cachedLeadData) {
-    console.log('Using cached lead data', cachedLeadData);
     return cachedLeadData;
   }
 
+  // Don't retry if we already attempted and failed
+  if (fetchAttempted) {
+    return [];
+  }
+
+  fetchAttempted = true;
+
   try {
-    // The file should be in the public directory
-    const response = await fetch('/lead_demo_yourgpt.json');
-    if (!response.ok) {
-      throw new Error(`Failed to fetch local lead data: ${response.statusText}`);
+    // Try multiple possible file locations
+    const possiblePaths = [
+      '/lead_demo_yourgpt.json',
+      '/public/lead_demo_yourgpt.json',
+      '/data/lead_demo_yourgpt.json'
+    ];
+
+    for (const path of possiblePaths) {
+      try {
+        const response = await fetch(path);
+        if (response.ok) {
+          const data = await response.json();
+          cachedLeadData = Array.isArray(data) ? data : [];
+          console.log(`Local lead data loaded successfully from ${path}`, cachedLeadData);
+          return cachedLeadData;
+        }
+      } catch (pathError) {
+        // Continue to next path
+        continue;
+      }
     }
 
-    const data = await response.json();
-    cachedLeadData = Array.isArray(data) ? data : [];
-    console.log('Fetched local lead data successfully', cachedLeadData);
+    // If no file found, return empty array without error
+    console.log('No local lead data file found, using database only');
+    cachedLeadData = [];
     return cachedLeadData;
   } catch (error) {
-    console.error('Error fetching local lead data:', error);
-    return [];
+    console.log('Local lead data not available:', error);
+    cachedLeadData = [];
+    return cachedLeadData;
   }
 };
 
 /**
- * Search the local JSON lead data with enhanced matching and debugging
+ * Fast search implementation for local leads
  */
 export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
   if (!query.trim()) {
@@ -109,22 +134,34 @@ export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
   }
   
   const localData = await fetchLocalLeadData();
+  
+  if (localData.length === 0) {
+    return [];
+  }
+  
   const searchTerm = query.toLowerCase();
   
-  console.log(`Searching for: "${searchTerm}" in ${localData.length} local records`);
+  // Optimized search with early termination
+  const results: LocalLeadData[] = [];
+  const maxResults = 50; // Limit results for performance
   
-  // Search through multiple fields with improved partial matching
-  const results = localData.filter(lead => {
+  for (const lead of localData) {
+    if (results.length >= maxResults) break;
+    
     // Clean and normalize the CKT field for comparison
     const leadCkt = (lead.ckt || '').toLowerCase();
     const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
     
-    // Check for matches in various fields
+    // Quick checks for exact matches first (fastest)
+    if (leadCkt === searchTerm || cktWithoutPrefix === searchTerm) {
+      results.unshift(lead); // Add exact matches to front
+      continue;
+    }
+    
+    // Then check for partial matches
     const cktMatches = 
       leadCkt.includes(searchTerm) || 
-      cktWithoutPrefix.includes(searchTerm) ||
-      (searchTerm.includes(leadCkt) && leadCkt.length > 2) ||
-      (searchTerm.includes(cktWithoutPrefix) && cktWithoutPrefix.length > 2);
+      cktWithoutPrefix.includes(searchTerm);
     
     const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
     const addressMatches = (lead.address || '').toLowerCase().includes(searchTerm);
@@ -132,19 +169,12 @@ export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
     const emailMatches = (lead.email_id || '').toLowerCase().includes(searchTerm);
     const ipAddressMatches = (lead.usable_ip_address || '').includes(searchTerm);
     
-    const isMatch = cktMatches || nameMatches || addressMatches || contactMatches || emailMatches || ipAddressMatches;
-    
-    // Debug logging for each lead check
-    if (isMatch) {
-      console.log(`Match found: ${lead.ckt} - ${lead.cust_name}`);
-      console.log(`  CKT match: ${cktMatches}, Name match: ${nameMatches}, Address match: ${addressMatches}`);
-      console.log(`  Contact match: ${contactMatches}, Email match: ${emailMatches}, IP match: ${ipAddressMatches}`);
+    if (cktMatches || nameMatches || addressMatches || contactMatches || emailMatches || ipAddressMatches) {
+      results.push(lead);
     }
-    
-    return isMatch;
-  });
+  }
   
-  console.log(`Search completed. Found ${results.length} matches for "${searchTerm}"`);
+  console.log(`Fast search completed. Found ${results.length} matches for "${searchTerm}"`);
   
   // Map to the application Lead type
   return results.map(mapJsonToLead);
