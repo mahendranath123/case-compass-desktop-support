@@ -7,7 +7,7 @@ const Index = () => {
     document.title = "Technical Support Workflow Tracker";
   }, []);
 
-  // Just redirect to the dashboard or login page
+  // Direct redirect to dashboard - no delays
   return <Navigate to="/dashboard" replace />;
 };
 

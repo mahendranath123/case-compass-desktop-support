@@ -85,41 +85,26 @@ const mapCaseToSupabaseCase = (caseItem: Omit<Case, 'id'>): any => {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Start as false for faster loading
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Optimized data loading - load in background after app renders
+  // Fast data loading without blocking UI
   useEffect(() => {
     const loadData = async () => {
-      try {
-        // Load data in parallel without blocking UI
-        const [leadsResult, casesResult] = await Promise.allSettled([
-          fetchLeads(),
-          fetchCases()
-        ]);
-        
-        if (leadsResult.status === 'rejected') {
-          console.error('Failed to load leads:', leadsResult.reason);
-        }
-        
-        if (casesResult.status === 'rejected') {
-          console.error('Failed to load cases:', casesResult.reason);
-        }
-        
-      } catch (error) {
-        console.error('Error during data loading:', error);
-      }
+      // Load data in parallel
+      await Promise.all([
+        fetchLeads(),
+        fetchCases()
+      ]);
     };
     
-    // Load data in background - don't block initial render
-    setTimeout(loadData, 100);
+    loadData();
   }, []);
 
   const fetchLeads = async () => {
     try {
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
-        .limit(500); // Reasonable limit for initial load
+        .select('*');
         
       if (error) {
         throw error;
@@ -128,11 +113,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         const mappedLeads = data.map(mapSupabaseLeadToLead);
         setLeads(mappedLeads);
+        console.log(`Loaded ${mappedLeads.length} leads from database`);
       }
     } catch (error) {
       console.error('Error fetching leads:', error);
       
-      // Quick fallback to localStorage
+      // Fallback to localStorage
       const savedLeads = localStorage.getItem('supportAppLeads');
       if (savedLeads) {
         try {
@@ -148,8 +134,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('cases')
-        .select('*')
-        .limit(500); // Reasonable limit for initial load
+        .select('*');
         
       if (error) {
         throw error;
@@ -158,11 +143,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         const mappedCases = data.map(mapSupabaseCaseToCase);
         setCases(mappedCases);
+        console.log(`Loaded ${mappedCases.length} cases from database`);
       }
     } catch (error) {
       console.error('Error fetching cases:', error);
       
-      // Quick fallback to localStorage
+      // Fallback to localStorage
       const savedCases = localStorage.getItem('supportAppCases');
       if (savedCases) {
         try {
@@ -178,46 +164,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return leads.find(lead => lead.ckt === ckt);
   };
 
+  // INSTANT SEARCH - No delays, no timeouts
   const searchLeads = async (query: string): Promise<Lead[]> => {
     if (!query.trim()) return [];
     
     const searchTerm = query.toLowerCase();
     
-    // Fast in-memory search first
+    // Instant in-memory search
     const localResults = leads.filter(lead => {
       const leadCkt = (lead.ckt || '').toLowerCase();
       const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
       
+      // Exact match first
+      if (leadCkt === searchTerm || cktWithoutPrefix === searchTerm) {
+        return true;
+      }
+      
+      // Partial matches
       const cktMatches = 
         leadCkt.includes(searchTerm) || 
         cktWithoutPrefix.includes(searchTerm);
       
       const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
-      const ipAddressMatches = (lead.usable_ip_address || '').toLowerCase().includes(searchTerm);
+      const ipAddressMatches = (lead.usable_ip_address || '').includes(searchTerm);
       
       return cktMatches || nameMatches || ipAddressMatches;
-    }).slice(0, 15); // Limit for performance
+    });
     
-    // Return local results if found
-    if (localResults.length > 0) {
-      return localResults;
-    }
-    
-    // Search database if no local results
-    try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .or(`ckt.ilike.%${query}%,cust_name.ilike.%${query}%,usable_ip_address.ilike.%${query}%`)
-        .limit(15);
-        
-      if (error) throw error;
-      
-      return data ? data.map(mapSupabaseLeadToLead) : [];
-    } catch (error) {
-      console.error('Error searching leads:', error);
-      return [];
-    }
+    // Return results immediately
+    return localResults.slice(0, 50);
   };
 
   const addLead = async (newLead: Omit<Lead, 'sr_no'>) => {
