@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { DataProvider, useData } from "@/contexts/DataContext";
+import { DataProvider } from "@/contexts/DataContext";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { CasesPage } from "@/pages/CasesPage";
@@ -18,7 +18,15 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import NotFoundOverride from "@/pages/NotFoundOverride";
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1, // Reduce retries for faster failure
+      refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    },
+  },
+});
 
 // Route guard component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -31,33 +39,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Loading wrapper component
-const LoadingWrapper = ({ children }: { children: React.ReactNode }) => {
-  const { isLoading } = useData();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading application data...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  return <>{children}</>;
-};
-
 const AppRoutes = () => {
   const { authState, loading } = useAuth();
   
+  // Show minimal loading only for auth initialization
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-16 w-16 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Initializing application...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -72,9 +63,7 @@ const AppRoutes = () => {
       <Route path="/" element={
         <ProtectedRoute>
           <Layout>
-            <LoadingWrapper>
-              <DashboardPage />
-            </LoadingWrapper>
+            <DashboardPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -82,9 +71,7 @@ const AppRoutes = () => {
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Layout>
-            <LoadingWrapper>
-              <DashboardPage />
-            </LoadingWrapper>
+            <DashboardPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -92,9 +79,7 @@ const AppRoutes = () => {
       <Route path="/cases" element={
         <ProtectedRoute>
           <Layout>
-            <LoadingWrapper>
-              <CasesPage />
-            </LoadingWrapper>
+            <CasesPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -102,9 +87,7 @@ const AppRoutes = () => {
       <Route path="/case/:id" element={
         <ProtectedRoute>
           <Layout>
-            <LoadingWrapper>
-              <CaseDetailPage />
-            </LoadingWrapper>
+            <CaseDetailPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -112,9 +95,7 @@ const AppRoutes = () => {
       <Route path="/new-case" element={
         <ProtectedRoute>
           <Layout>
-            <LoadingWrapper>
-              <NewCasePage />
-            </LoadingWrapper>
+            <NewCasePage />
           </Layout>
         </ProtectedRoute>
       } />

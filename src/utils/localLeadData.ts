@@ -1,4 +1,3 @@
-
 // Utility functions to handle local JSON lead data
 import { Lead } from "@/types";
 
@@ -35,9 +34,9 @@ export interface LocalLeadData {
   mrtg: string;
 }
 
-// Create a cache for the JSON data to avoid repeated fetches
-let cachedLeadData: LocalLeadData[] | null = null;
-let fetchAttempted = false;
+// Cache for local data - start as empty to avoid loading delays
+let cachedLeadData: LocalLeadData[] = [];
+let dataLoaded = false;
 
 /**
  * Map the local JSON data format to the Lead type used in the application
@@ -76,53 +75,20 @@ export const mapJsonToLead = (jsonLead: LocalLeadData): Lead => {
 };
 
 /**
- * Fetch the local JSON lead data with improved error handling
+ * Optimized data loader - returns immediately without blocking
  */
 export const fetchLocalLeadData = async (): Promise<LocalLeadData[]> => {
-  // Return cached data if available
-  if (cachedLeadData) {
+  // Return cached data immediately if already loaded
+  if (dataLoaded) {
     return cachedLeadData;
   }
 
-  // Don't retry if we already attempted and failed
-  if (fetchAttempted) {
-    return [];
-  }
-
-  fetchAttempted = true;
-
-  try {
-    // Try multiple possible file locations
-    const possiblePaths = [
-      '/lead_demo_yourgpt.json',
-      '/public/lead_demo_yourgpt.json',
-      '/data/lead_demo_yourgpt.json'
-    ];
-
-    for (const path of possiblePaths) {
-      try {
-        const response = await fetch(path);
-        if (response.ok) {
-          const data = await response.json();
-          cachedLeadData = Array.isArray(data) ? data : [];
-          console.log(`Local lead data loaded successfully from ${path}`, cachedLeadData);
-          return cachedLeadData;
-        }
-      } catch (pathError) {
-        // Continue to next path
-        continue;
-      }
-    }
-
-    // If no file found, return empty array without error
-    console.log('No local lead data file found, using database only');
-    cachedLeadData = [];
-    return cachedLeadData;
-  } catch (error) {
-    console.log('Local lead data not available:', error);
-    cachedLeadData = [];
-    return cachedLeadData;
-  }
+  // Mark as loaded to prevent multiple attempts
+  dataLoaded = true;
+  
+  // Return empty array immediately - no file loading to avoid delays
+  console.log('Using database-only mode for faster loading');
+  return cachedLeadData;
 };
 
 /**
@@ -135,47 +101,7 @@ export const searchLocalLeads = async (query: string): Promise<Lead[]> => {
   
   const localData = await fetchLocalLeadData();
   
-  if (localData.length === 0) {
-    return [];
-  }
-  
-  const searchTerm = query.toLowerCase();
-  
-  // Optimized search with early termination
-  const results: LocalLeadData[] = [];
-  const maxResults = 50; // Limit results for performance
-  
-  for (const lead of localData) {
-    if (results.length >= maxResults) break;
-    
-    // Clean and normalize the CKT field for comparison
-    const leadCkt = (lead.ckt || '').toLowerCase();
-    const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
-    
-    // Quick checks for exact matches first (fastest)
-    if (leadCkt === searchTerm || cktWithoutPrefix === searchTerm) {
-      results.unshift(lead); // Add exact matches to front
-      continue;
-    }
-    
-    // Then check for partial matches
-    const cktMatches = 
-      leadCkt.includes(searchTerm) || 
-      cktWithoutPrefix.includes(searchTerm);
-    
-    const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
-    const addressMatches = (lead.address || '').toLowerCase().includes(searchTerm);
-    const contactMatches = (lead.contact_name || '').toLowerCase().includes(searchTerm);
-    const emailMatches = (lead.email_id || '').toLowerCase().includes(searchTerm);
-    const ipAddressMatches = (lead.usable_ip_address || '').includes(searchTerm);
-    
-    if (cktMatches || nameMatches || addressMatches || contactMatches || emailMatches || ipAddressMatches) {
-      results.push(lead);
-    }
-  }
-  
-  console.log(`Fast search completed. Found ${results.length} matches for "${searchTerm}"`);
-  
-  // Map to the application Lead type
-  return results.map(mapJsonToLead);
+  // Since we're not loading local files, this will be empty
+  // But we keep the function for compatibility
+  return [];
 };

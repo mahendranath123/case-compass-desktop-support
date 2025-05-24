@@ -2,7 +2,6 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Lead, Case, CaseStatus, Connectivity } from '@/types';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { searchLocalLeads, fetchLocalLeadData, mapJsonToLead } from '@/utils/localLeadData';
 
 // Utility function to generate UUID using the built-in crypto API
 function generateUUID() {
@@ -86,49 +85,41 @@ const mapCaseToSupabaseCase = (caseItem: Omit<Case, 'id'>): any => {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [cases, setCases] = useState<Case[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start as false for faster loading
 
-  // Load data on component mount with better error handling
+  // Optimized data loading - load in background after app renders
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
-      
       try {
-        // Load Supabase data first
-        await Promise.all([fetchLeads(), fetchCases()]);
+        // Load data in parallel without blocking UI
+        const [leadsResult, casesResult] = await Promise.allSettled([
+          fetchLeads(),
+          fetchCases()
+        ]);
         
-        // Try to load local JSON data as fallback/supplement
-        try {
-          const localData = await fetchLocalLeadData();
-          if (localData.length > 0) {
-            const mappedLeads = localData.map(mapJsonToLead);
-            setLeads(prevLeads => {
-              const existingCkts = new Set(prevLeads.map(lead => lead.ckt));
-              const uniqueLocalLeads = mappedLeads.filter(lead => !existingCkts.has(lead.ckt));
-              return [...prevLeads, ...uniqueLocalLeads];
-            });
-            console.log('Local JSON lead data loaded successfully');
-          }
-        } catch (localError) {
-          // Silently handle local data loading errors - it's optional
-          console.log('Local data not available, continuing with Supabase data only');
+        if (leadsResult.status === 'rejected') {
+          console.error('Failed to load leads:', leadsResult.reason);
         }
+        
+        if (casesResult.status === 'rejected') {
+          console.error('Failed to load cases:', casesResult.reason);
+        }
+        
       } catch (error) {
-        console.error('Error loading data:', error);
-        toast.error('Failed to load data');
-      } finally {
-        setIsLoading(false);
+        console.error('Error during data loading:', error);
       }
     };
     
-    loadData();
+    // Load data in background - don't block initial render
+    setTimeout(loadData, 100);
   }, []);
 
   const fetchLeads = async () => {
     try {
       const { data, error } = await supabase
         .from('leads')
-        .select('*');
+        .select('*')
+        .limit(500); // Reasonable limit for initial load
         
       if (error) {
         throw error;
@@ -141,10 +132,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error fetching leads:', error);
       
-      // Fallback to localStorage if Supabase fetch fails
+      // Quick fallback to localStorage
       const savedLeads = localStorage.getItem('supportAppLeads');
       if (savedLeads) {
-        setLeads(JSON.parse(savedLeads));
+        try {
+          setLeads(JSON.parse(savedLeads));
+        } catch (parseError) {
+          console.error('Error parsing saved leads:', parseError);
+        }
       }
     }
   };
@@ -153,7 +148,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('cases')
-        .select('*');
+        .select('*')
+        .limit(500); // Reasonable limit for initial load
         
       if (error) {
         throw error;
@@ -166,10 +162,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error fetching cases:', error);
       
-      // Fallback to localStorage if Supabase fetch fails
+      // Quick fallback to localStorage
       const savedCases = localStorage.getItem('supportAppCases');
       if (savedCases) {
-        setCases(JSON.parse(savedCases));
+        try {
+          setCases(JSON.parse(savedCases));
+        } catch (parseError) {
+          console.error('Error parsing saved cases:', parseError);
+        }
       }
     }
   };
@@ -183,49 +183,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const searchTerm = query.toLowerCase();
     
+    // Fast in-memory search first
+    const localResults = leads.filter(lead => {
+      const leadCkt = (lead.ckt || '').toLowerCase();
+      const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
+      
+      const cktMatches = 
+        leadCkt.includes(searchTerm) || 
+        cktWithoutPrefix.includes(searchTerm);
+      
+      const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
+      const ipAddressMatches = (lead.usable_ip_address || '').toLowerCase().includes(searchTerm);
+      
+      return cktMatches || nameMatches || ipAddressMatches;
+    }).slice(0, 15); // Limit for performance
+    
+    // Return local results if found
+    if (localResults.length > 0) {
+      return localResults;
+    }
+    
+    // Search database if no local results
     try {
-      // Fast local search first - search in memory
-      const localResults = leads.filter(lead => {
-        const leadCkt = (lead.ckt || '').toLowerCase();
-        const cktWithoutPrefix = leadCkt.replace(/^ckt/i, '');
-        
-        const cktMatches = 
-          leadCkt.includes(searchTerm) || 
-          cktWithoutPrefix.includes(searchTerm);
-        
-        const nameMatches = (lead.cust_name || '').toLowerCase().includes(searchTerm);
-        const addressMatches = (lead.address || '').toLowerCase().includes(searchTerm);
-        const contactMatches = (lead.contact_name || '').toLowerCase().includes(searchTerm);
-        const emailMatches = (lead.email_id || '').toLowerCase().includes(searchTerm);
-        const ipAddressMatches = (lead.usable_ip_address || '').includes(searchTerm);
-        
-        return cktMatches || nameMatches || addressMatches || contactMatches || emailMatches || ipAddressMatches;
-      });
-      
-      // If we have local results, return them immediately for speed
-      if (localResults.length > 0) {
-        return localResults;
-      }
-      
-      // If no local results, try Supabase search
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .or(`ckt.ilike.%${query}%,cust_name.ilike.%${query}%`);
+        .or(`ckt.ilike.%${query}%,cust_name.ilike.%${query}%,usable_ip_address.ilike.%${query}%`)
+        .limit(15);
         
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
       
       return data ? data.map(mapSupabaseLeadToLead) : [];
     } catch (error) {
       console.error('Error searching leads:', error);
-      
-      // Final fallback to simple local filtering
-      return leads.filter(lead => 
-        lead.ckt.toLowerCase().includes(searchTerm) || 
-        lead.cust_name.toLowerCase().includes(searchTerm)
-      );
+      return [];
     }
   };
 
