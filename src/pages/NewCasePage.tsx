@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/DataContext";
+import { useData } from "@/contexts/LocalDataContext";
 import {
   Card,
   CardContent,
