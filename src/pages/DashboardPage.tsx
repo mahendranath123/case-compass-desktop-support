@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { useData } from "@/contexts/DataContext";
+import { useData } from "@/contexts/LocalDataContext";
 import { CaseCard } from "@/components/cases/CaseCard";
 import { StatusBadge } from "@/components/cases/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
