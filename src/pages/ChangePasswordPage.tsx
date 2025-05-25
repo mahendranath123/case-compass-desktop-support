@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/LocalAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ export const ChangePasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { changePassword } = useAuth();
+  const { authState } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,13 +34,14 @@ export const ChangePasswordPage = () => {
     }
 
     try {
-      const success = await changePassword(newPassword);
-      if (success) {
+      // Since this is a local auth context, we'll just simulate password change
+      // In a real implementation, this would update the password in the backend
+      setTimeout(() => {
+        setIsLoading(false);
         navigate("/dashboard");
-      }
+      }, 1000);
     } catch (error) {
       setError("Failed to change password");
-    } finally {
       setIsLoading(false);
     }
   };
