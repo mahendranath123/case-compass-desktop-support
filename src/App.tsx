@@ -18,12 +18,14 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import NotFoundOverride from "@/pages/NotFoundOverride";
 import { Loader2 } from "lucide-react";
 
+// Optimized query client for faster performance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1, // Reduce retries for faster failure
-      refetchOnWindowFocus: false, // Prevent unnecessary refetches
+      staleTime: 10 * 60 * 1000, // 10 minutes
+      retry: false, // No retries for faster failure
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   },
 });
@@ -42,14 +44,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   const { authState, loading } = useAuth();
   
-  // Show minimal loading only for auth initialization
+  // Minimal loading screen
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }

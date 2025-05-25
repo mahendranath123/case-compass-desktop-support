@@ -1,14 +1,9 @@
 
-import { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { DashboardPage } from './DashboardPage';
 
 const Index = () => {
-  useEffect(() => {
-    document.title = "Technical Support Workflow Tracker";
-  }, []);
-
-  // Direct redirect to dashboard - no delays
-  return <Navigate to="/dashboard" replace />;
+  // Direct render instead of redirect for faster loading
+  return <DashboardPage />;
 };
 
 export default Index;
