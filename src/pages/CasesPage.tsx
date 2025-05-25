@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useData } from "@/contexts/DataContext";
+import { useData } from "@/contexts/LocalDataContext";
 import { CaseCard } from "@/components/cases/CaseCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

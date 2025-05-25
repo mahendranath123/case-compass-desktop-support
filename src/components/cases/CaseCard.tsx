@@ -6,7 +6,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { useData } from "@/contexts/DataContext";
+import { useData } from "@/contexts/LocalDataContext";
 import { useState } from "react";
 
 interface CaseCardProps {
