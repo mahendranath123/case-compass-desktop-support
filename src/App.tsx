@@ -5,8 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { DataProvider } from "@/contexts/DataContext";
+import { AuthProvider, useAuth } from "@/contexts/LocalAuthContext";
+import { DataProvider } from "@/contexts/LocalDataContext";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { CasesPage } from "@/pages/CasesPage";
@@ -18,14 +18,13 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import NotFoundOverride from "@/pages/NotFoundOverride";
 import { Loader2 } from "lucide-react";
 
-// Optimized query client for faster performance
+// Simple query client - no complex configurations
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10 * 60 * 1000, // 10 minutes
-      retry: false, // No retries for faster failure
+      staleTime: 5 * 60 * 1000,
+      retry: false,
       refetchOnWindowFocus: false,
-      refetchOnMount: false,
     },
   },
 });
@@ -44,7 +43,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   const { authState, loading } = useAuth();
   
-  // Minimal loading screen
+  // Simple loading screen
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

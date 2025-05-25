@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/LocalAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,14 +19,14 @@ export const LoginPage = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate network delay for loading state demo
-    setTimeout(() => {
-      const success = login(username, password);
-      if (success) {
-        navigate("/dashboard");
-      }
-      setIsLoading(false);
-    }, 800);
+    // Simple login without delays
+    const success = login(username, password);
+    if (success) {
+      navigate("/dashboard");
+    } else {
+      alert("Invalid credentials. Use admin/admin123 or user/user123");
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -106,7 +106,7 @@ export const LoginPage = () => {
         </Card>
         
         <div className="mt-4 text-center text-sm text-muted-foreground">
-          <p>Default credentials: admin/admin123 or user/user123</p>
+          <p>Demo credentials: admin/admin123 or user/user123</p>
         </div>
       </div>
     </div>
