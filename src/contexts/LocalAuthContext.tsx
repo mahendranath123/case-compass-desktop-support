@@ -21,6 +21,8 @@ interface AuthContextType {
   login: (username: string, password: string) => boolean;
   logout: () => void;
   loading: boolean;
+  users: UserProfile[];
+  createUser: (email: string, password: string, username: string, fullName?: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: false
   });
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<UserProfile[]>([]);
 
   useEffect(() => {
     // Check for existing session in localStorage
@@ -66,6 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           profile: user,
           isAuthenticated: true
         });
+        // If admin, load all users
+        if (user.role === 'admin') {
+          const usersWithoutPasswords = mockUsers.map(({ password, ...user }) => user);
+          setUsers(usersWithoutPasswords);
+        }
       } catch (error) {
         console.error('Error parsing saved user:', error);
         localStorage.removeItem('currentUser');
@@ -85,6 +93,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: true
       });
       localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+      
+      // If admin, load all users
+      if (userWithoutPassword.role === 'admin') {
+        const usersWithoutPasswords = mockUsers.map(({ password, ...user }) => user);
+        setUsers(usersWithoutPasswords);
+      }
+      
       return true;
     }
     
@@ -97,7 +112,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profile: null,
       isAuthenticated: false
     });
+    setUsers([]);
     localStorage.removeItem('currentUser');
+  };
+
+  const createUser = async (email: string, password: string, username: string, fullName?: string): Promise<boolean> => {
+    if (authState.profile?.role !== 'admin') {
+      return false;
+    }
+
+    // Check if username already exists
+    if (mockUsers.some(u => u.username === username)) {
+      return false;
+    }
+
+    const newUser = {
+      id: Date.now().toString(),
+      username,
+      password,
+      full_name: fullName || '',
+      role: 'user' as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    mockUsers.push(newUser);
+    
+    // Update users list without passwords
+    const usersWithoutPasswords = mockUsers.map(({ password, ...user }) => user);
+    setUsers(usersWithoutPasswords);
+    
+    return true;
   };
 
   return (
@@ -105,7 +150,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       authState, 
       login, 
       logout,
-      loading
+      loading,
+      users,
+      createUser
     }}>
       {children}
     </AuthContext.Provider>
