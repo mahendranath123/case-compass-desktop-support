@@ -1,15 +1,16 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/LocalAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Lock, User } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 export const LoginPage = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -19,14 +20,17 @@ export const LoginPage = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simple login without delays
-    const success = login(username, password);
-    if (success) {
-      navigate("/dashboard");
-    } else {
-      alert("Invalid credentials. Use admin/admin123 or user/user123");
+    try {
+      const success = await login(email, password);
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -47,21 +51,22 @@ export const LoginPage = () => {
             <CardHeader>
               <CardTitle>Sign In</CardTitle>
               <CardDescription>
-                Enter your credentials to access the dashboard
+                Enter your email and password to access the dashboard
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                   <Input
-                    id="username"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
-                    autoComplete="username"
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -106,7 +111,7 @@ export const LoginPage = () => {
         </Card>
         
         <div className="mt-4 text-center text-sm text-muted-foreground">
-          <p>Demo credentials: admin/admin123 or user/user123</p>
+          <p>Need an account? Contact your administrator</p>
         </div>
       </div>
     </div>
