@@ -1,5 +1,5 @@
 
-import { useAuth } from "@/contexts/LocalAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="border-b bg-background z-10">
+    <header className="border-b bg-background z-10 fixed top-0 left-0 right-0">
       <div className="container flex items-center justify-between h-16">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">

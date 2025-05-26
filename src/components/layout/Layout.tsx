@@ -1,7 +1,7 @@
 
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
-import { useAuth } from "@/contexts/LocalAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
