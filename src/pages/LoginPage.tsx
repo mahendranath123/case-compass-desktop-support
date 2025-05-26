@@ -18,6 +18,12 @@ export const LoginPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -68,6 +74,7 @@ export const LoginPage = () => {
                     className="pl-10"
                     autoComplete="email"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -84,6 +91,7 @@ export const LoginPage = () => {
                     className="pl-10"
                     autoComplete="current-password"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>

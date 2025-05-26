@@ -50,7 +50,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
       return data as UserProfile;
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -66,7 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
       setUsers(data as UserProfile[]);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -75,11 +81,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (!mounted) return;
+
+        if (session?.user) {
+          // Use setTimeout to prevent infinite loops
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            const profile = await fetchUserProfile(session.user.id);
+            
+            if (!mounted) return;
+            
+            setAuthState({
+              user: session.user,
+              profile,
+              isAuthenticated: true
+            });
+            
+            // Fetch all users if admin
+            if (profile?.role === 'admin') {
+              await fetchAllUsers();
+            }
+            
+            setLoading(false);
+          }, 0);
+        } else {
+          setAuthState({
+            user: null,
+            profile: null,
+            isAuthenticated: false
+          });
+          setUsers([]);
+          setLoading(false);
+        }
+      }
+    );
+
+    // Check for existing session
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (!mounted) return;
+
         if (session?.user) {
           const profile = await fetchUserProfile(session.user.id);
+          
+          if (!mounted) return;
+          
           setAuthState({
             user: session.user,
             profile,
@@ -90,37 +152,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profile?.role === 'admin') {
             await fetchAllUsers();
           }
-        } else {
-          setAuthState({
-            user: null,
-            profile: null,
-            isAuthenticated: false
-          });
-          setUsers([]);
         }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error checking session:', error);
         setLoading(false);
       }
-    );
+    };
 
-    // Check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
-        setAuthState({
-          user: session.user,
-          profile,
-          isAuthenticated: true
-        });
-        
-        // Fetch all users if admin
-        if (profile?.role === 'admin') {
-          await fetchAllUsers();
-        }
-      }
-      setLoading(false);
-    });
+    checkSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -133,7 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       if (data.user) {
-        toast.success(`Welcome back!`);
+        toast.success('Welcome back!');
         return true;
       }
       
